@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# AI Job Tools by Konstantinos Houtas
+## Introduction
+As a software engineer currently in the market, I have decided to develop an application to help me (and potentially others) in generating cover letters to help speed up the job search.
 
-## Getting Started
+Currently only supports cover letter generation, but with potentially more features down the line
 
-First, run the development server:
+## Features
+- Cover Letter Generation
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+    - Insert a prompt with "placeholders" such as [placeholder here].
+    - Provide a company name, and a role
+    - Provide additional information about the company
+    - Both PDF and DOCX download support
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Profiles (coming soon)
+    - Ability to save generated cover letters to your profile
+    - Ability to save prescripts and postscripts to your profile, for instantly placing in your cover letters
+    - Ability to add and save skills, for the AI to use in cover letter generations
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How to clone and run
+This unfortunately is not free... but it's quite cheap. Please go [here](https://platform.openai.com/docs/overview) to get yourself an API key. You can view pricing as well. By default, this uses gpt-4o-mini for cheap costs for personal use.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Clone the project as normal `git clone https://github.com/Reyder95/ai-jobtools.git`.
 
-## Learn More
+cd into the project `cd ai-jobtools`
 
-To learn more about Next.js, take a look at the following resources:
+Type `npm install` to install all the required dependencies
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Create a file in the root folder called .env.local and add the following line
+`OPENAI_API_KEY=YOUR_API_KEY` Replace `YOUR_API_KEY` with the API key you received in the openai platform.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+Type `npm run dev` in the root location to run the project.
 
-## Deploy on Vercel
+To check if the project is working, go to `localhost:3000` in your browser.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The project should now be working! If you have any issues running the application this way, please use the `Issues` section and post the problems!
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Thank you!
