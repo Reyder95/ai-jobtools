@@ -4,11 +4,14 @@ import styles from "./page.module.css";
 import { Container, Grid, TextField, Box, IconButton, Button, Dialog, DialogTitle, FormControl, InputLabel, Select, SelectChangeEvent, MenuItem, DialogContent } from "@mui/material";
 import { Document, Packer, Paragraph, TextRun } from 'docx'
 import { saveAs } from 'file-saver'
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CloseIcon from '@mui/icons-material/Close';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import DownloadIcon from '@mui/icons-material/Download';
 import jsPDF from 'jspdf'
+import NavBar from "@/components/navbar"
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
 
 interface Field {
   id: number,
@@ -19,6 +22,8 @@ export default function Home() {
 
   const [open, setOpen] = useState<boolean>(false)
 
+  const [user, setUser] = useState<any>(null)
+
   const [fileType, setFileType] = useState<string>('');
   const [prescript, setPrescript] = useState<string>('');
   const [postscript, setPostscript] = useState<string>('')
@@ -28,6 +33,17 @@ export default function Home() {
   const [role, setRole] = useState<string>('')
   const [coverLetterTemplate, setCoverLetterTemplate] = useState<string>('')
   const [aiCoverLetter, setAiCoverLetter] = useState<string>('');
+
+  useEffect(() => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log(user)
+        setUser(user)
+      } else {
+        console.log("user is not signed in!");
+      }
+    })
+  })
 
   const handleFileGeneration = () => {
     if (aiCoverLetter != '')
@@ -128,7 +144,8 @@ export default function Home() {
   }
 
   return (
-    <main className={styles.main}>
+    <main>
+      <NavBar user={user}/>
       <div className={styles.coverLetterBody}>
         <Container sx={{ marginTop: 4, lineHeight: 2 }}>
           <Box sx={{ mb: 4, whiteSpace: 'pre-line' }}>
