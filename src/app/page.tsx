@@ -11,7 +11,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import jsPDF from 'jspdf'
 import NavBar from "@/components/navbar"
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth, db } from "./firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 interface Field {
   id: number,
@@ -20,9 +21,25 @@ interface Field {
 
 export default function Home() {
 
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ]
+
   const [open, setOpen] = useState<boolean>(false)
 
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState<boolean>(true);
 
   const [fileType, setFileType] = useState<string>('');
   const [prescript, setPrescript] = useState<string>('');
@@ -35,15 +52,47 @@ export default function Home() {
   const [aiCoverLetter, setAiCoverLetter] = useState<string>('');
 
   useEffect(() => {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log(user)
-        setUser(user)
+    onAuthStateChanged(auth, async (observedUser) => {
+      if (observedUser) {
+        setUser(observedUser)
+        setLoading(false)
+
+        const userDocRef = doc(db, 'users', observedUser.uid)
+
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+
+            console.log("Cover Letter Data:", data)
+
+            const today = new Date();
+            const fullYear = today.getFullYear();
+            const halfYear = String(today.getFullYear())[2] + String(today.getFullYear())[3]
+            const paddedDay = String(today.getDate()).padStart(2, "0")
+            const normalDay = String(today.getDate());
+            const paddedMonth = String(today.getMonth()).padStart(2, "0");
+            const normalMonth = String(today.getMonth())
+            const wordedMonth = months[today.getMonth()];
+
+            let newPrescript = data.prescript.replace("[month-00]", paddedMonth);
+            newPrescript = newPrescript.replace("[month-0]", normalMonth);
+            newPrescript = newPrescript.replace("[month]", wordedMonth);
+            
+            newPrescript = newPrescript.replace("[day-00]", paddedDay);
+            newPrescript = newPrescript.replace("[day]", normalDay);
+
+            newPrescript = newPrescript.replace("[year-0000]", fullYear);
+            newPrescript = newPrescript.replace("[year-00]", halfYear);
+
+            setPrescript(newPrescript)
+            setPostscript(data.postscript)
+        }
       } else {
-        console.log("user is not signed in!");
+        setLoading(false)
       }
     })
-  })
+  }, [])
 
   const handleFileGeneration = () => {
     if (aiCoverLetter != '')
@@ -145,7 +194,7 @@ export default function Home() {
 
   return (
     <main>
-      <NavBar user={user}/>
+      <NavBar page="Cover Letter" loading={loading} user={user}/>
       <div className={styles.coverLetterBody}>
         <Container sx={{ marginTop: 4, lineHeight: 2 }}>
           <Box sx={{ mb: 4, whiteSpace: 'pre-line' }}>
