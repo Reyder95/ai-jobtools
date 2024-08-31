@@ -1,7 +1,7 @@
 'use client'
 
 import styles from "./page.module.css";
-import { Container, Grid, TextField, Box, IconButton, Button, Dialog, DialogTitle, FormControl, InputLabel, Select, SelectChangeEvent, MenuItem, DialogContent } from "@mui/material";
+import { Container, Grid, TextField, Box, IconButton, Button, Dialog, DialogTitle, FormControl, InputLabel, Select, SelectChangeEvent, MenuItem, DialogContent, DialogActions } from "@mui/material";
 import { Document, Packer, Paragraph, TextRun } from 'docx'
 import { saveAs } from 'file-saver'
 import { useEffect, useState } from "react";
@@ -13,10 +13,16 @@ import NavBar from "@/components/navbar"
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { doc, getDoc } from "firebase/firestore";
+import UndoIcon from '@mui/icons-material/Undo';
 
 interface Field {
   id: number,
   value: string
+}
+
+interface CoverLetterTemplate {
+  name: string,
+  template: string
 }
 
 export default function Home() {
@@ -50,6 +56,13 @@ export default function Home() {
   const [role, setRole] = useState<string>('')
   const [coverLetterTemplate, setCoverLetterTemplate] = useState<string>('')
   const [aiCoverLetter, setAiCoverLetter] = useState<string>('');
+
+  const [coverLetters, setCoverLetters] = useState<CoverLetterTemplate[]>([]);
+
+  const [choice, setChoice] = useState<boolean>(true);
+
+  const [coverLetterDialogOpen, setCoverLetterDialogOpen] = useState<boolean>(false);
+  const [selectedCoverLetterIndex, setSelectedCoverLetterIndex] = useState<number>();
 
   useEffect(() => {
     onAuthStateChanged(auth, async (observedUser) => {
@@ -87,6 +100,8 @@ export default function Home() {
 
             setPrescript(newPrescript)
             setPostscript(data.postscript)
+
+            setCoverLetters(data.coverLetters);
         }
       } else {
         setLoading(false)
@@ -192,6 +207,24 @@ export default function Home() {
     }
   }
 
+  const handleCoverLetterDialogClose = () => {
+    setCoverLetterDialogOpen(false);
+  }
+
+  const handleCoverLetterChange = (event: SelectChangeEvent<number | string>) => {
+    console.log(event.target.value)
+    setSelectedCoverLetterIndex(event.target.value as number)
+  }
+
+  const handleConfirmCoverLetter = () => {
+    if (selectedCoverLetterIndex != undefined && selectedCoverLetterIndex > -1) {
+      setCoverLetterTemplate(coverLetters[selectedCoverLetterIndex].template)
+      handleCoverLetterDialogClose();
+      setChoice(false);
+    }
+      
+  }
+
   return (
     <main>
       <NavBar page="Cover Letter" loading={loading} user={user}/>
@@ -209,7 +242,7 @@ export default function Home() {
             </Grid>
           </Grid>
           <Grid container spacing={2}>
-            <Grid item xs={6}>
+            <Grid item xs={6}>  
               <TextField value={company} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCompany(event.target.value)} fullWidth label="Company" variant="standard"/>
             </Grid>
             <Grid item xs={6}>
@@ -217,11 +250,26 @@ export default function Home() {
             </Grid>
           </Grid>
 
-          <Grid sx={{ marginTop: 1 }} container spacing={2}>
-            <Grid item xs={12}>
+          {
+            !choice ? 
+          <Grid sx={{ display: 'flex', alignItems: 'center', marginTop: 1 }} container spacing={2}>
+            <Grid sx={{ mt: 2, alignItems: 'center' }} item xs={0.7}>
+              <IconButton onClick={() => setChoice(true)} ><UndoIcon/></IconButton>
+            </Grid> 
+            <Grid item xs={11.3}>
               <TextField value={coverLetterTemplate} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCoverLetterTemplate(event.target.value)} variant="standard" fullWidth multiline label="Cover Letter Template"/>
+            </Grid> 
+          </Grid> :
+          <Grid sx={{ marginTop: 1 }} container spacing={2}>
+            <Grid item xs={6}>
+              <Button onClick={() => setCoverLetterDialogOpen(true)} fullWidth>Select Cover Letter</Button>
+            </Grid> 
+            <Grid item xs={6}>
+              <Button onClick={() => setChoice(false)} fullWidth>Manually Type One</Button>
             </Grid>
           </Grid>
+          }
+
 
           <Grid sx={{marginTop: 1, marginBottom: -3}} container spacing={2}>
             <Grid item xs={12}>
@@ -280,7 +328,11 @@ export default function Home() {
               value={fileType}
               label="File Type"
               onChange={handleFileTypeChange}
+              displayEmpty
             >
+              <MenuItem value="">
+                None
+              </MenuItem>
               <MenuItem value={'pdf'}>PDF</MenuItem>
               <MenuItem value={'docx'}>DOCX</MenuItem>
             </Select>
@@ -288,6 +340,47 @@ export default function Home() {
             <Button onClick={handleFileGeneration} fullWidth sx={{ mt: 2 }}>Generate</Button>
           </DialogContent>
 
+        </Dialog>
+
+        <Dialog
+        maxWidth="md"
+        fullWidth
+        onClose={handleCoverLetterDialogClose}
+        open={coverLetterDialogOpen}
+        >
+          <DialogTitle>Select a Cover Letter</DialogTitle>
+          <DialogContent>
+            <FormControl sx={{ mt: 3 }} fullWidth>
+              <InputLabel id="coverletter-select-label">Select a Cover Letter</InputLabel>
+              <Select
+              variant="standard"
+              labelId="coverletter-select-label"
+              id="coverletter-select"
+              value={selectedCoverLetterIndex !== undefined ? selectedCoverLetterIndex : ''}
+              label="Select a Cover Letter"
+              onChange={handleCoverLetterChange}
+              >
+                {
+                  coverLetters.map((coverletter : CoverLetterTemplate, index) => (
+                    <MenuItem value={index} key={index}>{coverletter.name}</MenuItem>
+                  ))
+                }
+              </Select>
+            </FormControl>
+
+            <Box sx={{ mt: 2, whiteSpace: 'pre-line' }}>
+              {
+                selectedCoverLetterIndex !== undefined && selectedCoverLetterIndex > -1 ? coverLetters[selectedCoverLetterIndex].template : "No Cover Letter Selected!"
+              }
+            </Box>
+
+
+          </DialogContent>
+
+          <DialogActions>
+            <Button onClick={handleCoverLetterDialogClose}>Cancel</Button>
+            <Button onClick={handleConfirmCoverLetter}>Confirm</Button>
+          </DialogActions>
         </Dialog>
         
         

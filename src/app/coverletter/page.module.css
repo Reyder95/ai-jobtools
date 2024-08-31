@@ -1,0 +1,9 @@
+.infoIcon {
+    opacity: 0.5;
+    transition: 0.2s;
+}
+
+.infoIcon:hover {
+    opacity: 1.0;
+    transition: 0.2s;
+}
