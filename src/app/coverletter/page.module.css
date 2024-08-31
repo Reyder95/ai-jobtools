@@ -1,9 +1,5 @@
-.infoIcon {
-    opacity: 0.5;
-    transition: 0.2s;
-}
-
-.infoIcon:hover {
-    opacity: 1.0;
-    transition: 0.2s;
+.formControl {
+  background-color: #D4D4D4;
+  border-radius: 3px;
+  padding: 10px;
 }

@@ -1,324 +1,390 @@
 'use client'
 
-import NavBar from "@/components/navbar";
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Container, Dialog, DialogActions, DialogContent, DialogTitle, Fade, Grid, IconButton, TextField, Tooltip, Typography } from "@mui/material";
-import { onAuthStateChanged } from "firebase/auth";
-import { useEffect, useState } from "react";
-import { auth, db } from "../firebase";
-import { useRouter } from "next/navigation";
-import { arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import AddIcon from '@mui/icons-material/Add';
-import InfoIcon from '@mui/icons-material/Info';
 import styles from "./page.module.css";
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
+import { Container, Grid, TextField, Box, IconButton, Button, Dialog, DialogTitle, FormControl, InputLabel, Select, SelectChangeEvent, MenuItem, DialogContent, DialogActions } from "@mui/material";
+import { Document, Packer, Paragraph, TextRun } from 'docx'
+import { saveAs } from 'file-saver'
+import { useEffect, useState } from "react";
+import CloseIcon from '@mui/icons-material/Close';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+import DownloadIcon from '@mui/icons-material/Download';
+import jsPDF from 'jspdf'
+import NavBar from "@/components/navbar"
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, db } from "../firebase";
+import { doc, getDoc } from "firebase/firestore";
+import UndoIcon from '@mui/icons-material/Undo';
 
-interface CoverLetterTemplate {
-    name: string,
-    template: string
+interface Field {
+  id: number,
+  value: string
 }
 
-export default function CoverLetter() {
+interface CoverLetterTemplate {
+  name: string,
+  template: string
+}
 
-    const router = useRouter();
+export default function Home() {
 
-    const [open, setOpen] = useState<boolean>(false)
-    const [alertOpen, setAlertOpen] = useState<boolean>(false);
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ]
 
-    const [user, setUser] = useState<any>(null)
-    const [loading, setLoading] = useState<boolean>(true)
+  const [open, setOpen] = useState<boolean>(false)
 
-    const [prescript, setPrescript] = useState<string>('')
-    const [postscript, setPostscript] = useState<string>('')
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState<boolean>(true);
 
-    const [coverLetterName, setCoverLetterName] = useState<string>('');
-    const [coverLetterTemplate, setCoverLetterTemplate] = useState<string>('');
+  const [fileType, setFileType] = useState<string>('');
+  const [prescript, setPrescript] = useState<string>('');
+  const [postscript, setPostscript] = useState<string>('')
 
-    const [coverLetters, setCoverLetters] = useState<CoverLetterTemplate[]>([])
+  const [fields, setFields] = useState<Field[]>([{ id: 1, value: '' }])
+  const [company, setCompany] = useState<string>('');
+  const [role, setRole] = useState<string>('')
+  const [coverLetterTemplate, setCoverLetterTemplate] = useState<string>('')
+  const [aiCoverLetter, setAiCoverLetter] = useState<string>('');
 
-    const [indexDelete, setIndexDelete] = useState<number>(-1);
-    const [indexDeleteName, setIndexDeleteName] = useState<string>("");
+  const [coverLetters, setCoverLetters] = useState<CoverLetterTemplate[]>([]);
 
-    const [editState, setEditState] = useState<boolean>(false);
-    const [editIndex, setEditIndex] = useState<number>(-1);
+  const [choice, setChoice] = useState<boolean>(true);
 
-    useEffect(() => {
-        onAuthStateChanged(auth, async(observedUser) => {
-          if (observedUser) {
-            setUser(observedUser)
-            setLoading(false)
+  const [coverLetterDialogOpen, setCoverLetterDialogOpen] = useState<boolean>(false);
+  const [selectedCoverLetterIndex, setSelectedCoverLetterIndex] = useState<number>();
 
-            const userDocRef = doc(db, 'users', observedUser.uid)
+  useEffect(() => {
+    onAuthStateChanged(auth, async (observedUser) => {
+      if (observedUser) {
+        setUser(observedUser)
+        setLoading(false)
 
-            const userDoc = await getDoc(userDocRef);
+        const userDocRef = doc(db, 'users', observedUser.uid)
 
-            if (userDoc.exists()) {
-                const data = userDoc.data();
+        const userDoc = await getDoc(userDocRef);
 
-                console.log("Cover Letter Data:", data)
+        if (userDoc.exists()) {
+            const data = userDoc.data();
 
-                setPrescript(data.prescript)
-                setPostscript(data.postscript)
-                setCoverLetters(data.coverLetters)
+            console.log("Cover Letter Data:", data)
 
-                
-            }
-          } else {
-            setLoading(false)
-          }
-        })
-      }, [])
+            const today = new Date();
+            const fullYear = today.getFullYear();
+            const halfYear = String(today.getFullYear())[2] + String(today.getFullYear())[3]
+            const paddedDay = String(today.getDate()).padStart(2, "0")
+            const normalDay = String(today.getDate());
+            const paddedMonth = String(today.getMonth()).padStart(2, "0");
+            const normalMonth = String(today.getMonth())
+            const wordedMonth = months[today.getMonth()];
 
-    const handleSubmitCoverLetterTemplate = async () => {
-        try {
-
-            if (coverLetterName.trim() == '' && coverLetterTemplate.trim() == '') {
-                alert('Please enter something in for both the Name and Template');
-                return;
-            }  
-
-            let myCoverLetter : CoverLetterTemplate = {
-                name: coverLetterName,
-                template: coverLetterTemplate
-            }
-
-            let myCoverLetterArray = [myCoverLetter]
-
-            const userDocRef = doc(db, 'users', user.uid);
-
-            const docSnap = await getDoc(userDocRef);
-
-            if (editState) {
-                let newCoverLetters = [...coverLetters]
-                newCoverLetters[editIndex] = myCoverLetter;
-
-                setCoverLetters(newCoverLetters)
-
-                if (docSnap.exists()) {
-                    if (docSnap.data().coverLetters) {
-                        await updateDoc(userDocRef, {
-                            coverLetters: newCoverLetters
-                        })
-                    }
-                }
-            }
-
-
-
-            if (docSnap.exists()) {
-
-                if (docSnap.data().coverLetters) {
-                    await updateDoc(userDocRef, {
-                        coverLetters: arrayUnion(...myCoverLetterArray)
-                    })
-                } else {
-                    await updateDoc(userDocRef, {
-                        coverLetters: myCoverLetterArray
-                    })
-                }
-
-
-            } else {
-                await setDoc(userDocRef, {
-                    coverLetters: myCoverLetterArray
-                })
-            }
-
-            coverLetters.push(myCoverLetter)
-
-            handleDialogClose()
-
-            console.log("Items added to array successfully");
-
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-    const handleAlertClickOpen = (index: number) => {
-        setIndexDelete(index)
-        setIndexDeleteName(coverLetters[index].name)
-        setAlertOpen(true)
-    }
-
-    const handleAlertClose = () => {
-        setAlertOpen(false);
-    }
-
-    const handleEditDialog = (index: number) => {
-        setEditState(true);
-        setEditIndex(index)
-
-        setCoverLetterName(coverLetters[index].name)
-        setCoverLetterTemplate(coverLetters[index].template)
-
-        handleClickOpen(true);
-    }
-
-    const handleClickOpen = (editState: boolean) => {
-
-        setOpen(true)
-    }
-
-    const handleDialogClose = () => {
-      setOpen(false);
-    }
-
-    const handleExited = () => {
-        setEditState(false)
-    }
-
-    const handleDeleteCoverLetter = async () => {
-        handleAlertClose();
-        const newCoverLetters = [...coverLetters];
-
-        console.log("TEST")
-
-        newCoverLetters.splice(indexDelete, 1);
-
-        console.log(newCoverLetters);
-
-        setCoverLetters(newCoverLetters)
-
-        try {
-            const userDocRef = doc(db, 'users', user.uid);
-
-            const docSnap = await getDoc(userDocRef)
-
-            if (docSnap.exists()) {
-                if (docSnap.data().coverLetters) {
-                    await updateDoc(userDocRef, {
-                        coverLetters: newCoverLetters
-                    })
-                    
-                }
-            }
-        } catch(error) {
-            console.error(error)
-        }
-    }
-
-    const handleSaveAdornments = async () => {
-        if (!prescript.trim() && !postscript.trim()) {
-            alert("Please enter at least a prescript or a postscript!");
-            return;
-        }
-
-        if (!user) {
-            alert("You are not signed in!")
-            return;
-        }
-
-        try {
-            const userDocRef = doc(db, 'users', user.uid);
-
-            const coverLetterData = {
-                prescript: prescript,
-                postscript: postscript
-            }
-
-            await setDoc(userDocRef, coverLetterData, { merge: true })
-
+            let newPrescript = data.prescript.replace("[month-00]", paddedMonth);
+            newPrescript = newPrescript.replace("[month-0]", normalMonth);
+            newPrescript = newPrescript.replace("[month]", wordedMonth);
             
+            newPrescript = newPrescript.replace("[day-00]", paddedDay);
+            newPrescript = newPrescript.replace("[day]", normalDay);
 
-            console.log("Cover letter data uploaded successfully!")
-        } catch (error) {
-            console.error(error)
+            newPrescript = newPrescript.replace("[year-0000]", fullYear);
+            newPrescript = newPrescript.replace("[year-00]", halfYear);
+
+            setPrescript(newPrescript)
+            setPostscript(data.postscript)
+
+            setCoverLetters(data.coverLetters);
         }
+      } else {
+        setLoading(false)
+      }
+    })
+  }, [])
+
+  const handleFileGeneration = () => {
+    if (aiCoverLetter != '')
+    {
+      const finalLetter = prescript + "\n\n" + aiCoverLetter + "\n\n" + postscript;
+
+      if (fileType == 'pdf') {
+        const doc = new jsPDF();
+        const maxWidth = 180;
+        doc.setFontSize(10);
+        doc.text(finalLetter, 15, 15, { lineHeightFactor: 1.5, maxWidth: maxWidth });
+        doc.save('coverletter.pdf');
+      }
+      else if (fileType == 'docx') {
+        const doc = new Document({
+          sections: [
+            {
+              properties: {},
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun(finalLetter),
+                  ],
+                }),
+              ],
+            },
+          ],
+        });
+
+        Packer.toBlob(doc).then((blob) => {
+          saveAs(blob, 'coverletter.docx')
+        })
         
+      }
     }
 
-    return (
-        <Box>
-            <NavBar loading={loading} user={user} page="Cover Letter Setup"  />
+  }
 
-            <Container maxWidth="md" sx={{ mt: 3 }}>
-                <Box>
-                    <Typography variant="h6" fontWeight="600" >Adornments</Typography>
-                    <TextField value={prescript} onChange={(event) => setPrescript(event.target.value) } variant="standard" multiline label="Pre Script" fullWidth/>
-                    <TextField value={postscript} onChange={(event) => setPostscript(event.target.value) } variant="standard" multiline label="Post Script" fullWidth/>
-                    <Button onClick={handleSaveAdornments} variant="contained" sx={{ mt: 2, float: 'right' }}>Save Adornments</Button>
-                </Box>
+  const handleFileTypeChange = (event: SelectChangeEvent) => {
+    setFileType(event.target.value as string)
+  }
 
-                <Box sx={{ mt: 10 }}>
-                    <Box sx={{ mb: 2, display: 'flex', alignItems: 'middle' }}>
-                        <Typography variant="h6" fontWeight="600" >Cover Letter Templates</Typography>
-                        <Box>
-                            <Button onClick={() => handleClickOpen(false)} size="small" sx={{ ml: 2 }} startIcon={<AddIcon/>} variant="contained">Add</Button>
-                        </Box>
-                        
-                    </Box>
-                    
-                    {
-                        coverLetters.map((letter, index) => (
-                            <Box>
-                                <Grid sx={{ mt: 2 }} container>
-                                  <Grid item xs={0.8}>
-                                    <IconButton onClick={() => handleAlertClickOpen(index)} color="error" sx={{ mt: 0.3}}><DeleteIcon fontSize="inherit"/></IconButton>
-                                  </Grid>
-                                  <Grid item xs={0.8}>
-                                    <IconButton onClick={() => handleEditDialog(index)} color="primary" sx={{ mt: 0.3}}><EditIcon fontSize="inherit"/></IconButton>
-                                  </Grid>
-                                  <Grid item xs={10.4}>
-                                  <Accordion>
-                                    <AccordionSummary
-                                        expandIcon={<ExpandMoreIcon/>}
-                                        aria-controls="panel-content"
-                                        id="panel-header"
-                                    >
-                                        {letter.name}
-                                    </AccordionSummary>
-                                    <AccordionDetails sx={{ whiteSpace: 'pre-line' }}>
-                                    <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
-                                        {letter.template}
-                                    </Typography>
+  const handleClickOpen = () => {
+    setOpen(true)
+  }
 
-                                </AccordionDetails>
-                            </Accordion>
-                                  </Grid>
-                                </Grid>
-                            
+  const handleDialogClose = () => {
+    setOpen(false);
+  }
 
-                            </Box>
+  const handleFieldChange = (id: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const newFields = fields.map((field) => 
+      field.id === id ? { ...field, value: event.target.value } : field
+    );
 
-                        ))
-                    }
-                </Box>
+    setFields(newFields);
+  }
 
-            </Container>
+  const handleAddField = () => {
+    console.log(fields)
+    setFields([...fields, { id: fields.length > 0 ? fields[fields.length - 1].id + 1 : 1, value: ''}]);
+  }
 
-            <Dialog TransitionComponent={Fade} TransitionProps={{ onExited: handleExited }} fullWidth maxWidth="lg" onClose={handleDialogClose} open={open}>
-                <DialogTitle>{!editState ?
-                    "Create a Template!" : "Edit " + coverLetters[editIndex].name
-                    }
-                </DialogTitle>
-                <DialogContent>
-                    <Typography sx={{ display: 'flex', alignItems: 'center' }} variant="subtitle1" fontSize="15px" >How do I do this? 
-                        <Tooltip title="Paste or write your cover letter here. For anything you'd like the AI to fill in, use brackets like [this].">
-                            <InfoIcon className={styles.infoIcon} sx={{ mb: "2.5px", ml: 1 }} fontSize="inherit"/>
-                        </Tooltip>
-                    </Typography>
+  const handleRemoveField = (id: number) => {
+    setFields(fields.filter((field) => field.id !== id));
+    console.log(id);
+    console.log(fields);
+  }
 
-                    <TextField onChange={(event) => setCoverLetterName(event.target.value)} value={coverLetterName} sx={{ mt: 3 }} multiline variant="standard" label="Name of Cover Letter" fullWidth />
+  const submitPrompt = async() => {
+    let companyNamePrompt = `The company name is: ${company}`
+    let rolePrompt = `The role at the company is: ${role}`;
+    let coverLetterPrompt = `The Cover Letter Template:\n\n${coverLetterTemplate}`
+    let additionalInformation = 'Additional Information Regarding the Company:\n';
 
-                    <TextField onChange={(event) => setCoverLetterTemplate(event.target.value)} value={coverLetterTemplate} sx={{ mt: 3 }} multiline variant="standard" label="Cover Letter Template" fullWidth />
-                    <Button onClick={handleSubmitCoverLetterTemplate} sx={{ mt: 2, float: 'right' }} >{ !editState ? "Submit" : "Edit Cover Letter"}</Button>
-                </DialogContent>
-            </Dialog>
+    for (const field of fields) {
+      additionalInformation += `- ${field.value}\n`
+    }
 
-            <Dialog  onClose={handleAlertClose} open={alertOpen}>
-                <DialogTitle>Are you sure you want to delete {
-                    indexDeleteName
-                }?</DialogTitle>
-                <DialogContent>
-                    This cannot be undone!
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleAlertClose}>Cancel</Button>
-                    <Button onClick={handleDeleteCoverLetter}>Confirm</Button>
-                </DialogActions>
-            </Dialog>
-        </Box>
-    )
+    const combinedPrompt = companyNamePrompt + "\n\n" + rolePrompt + "\n\n" + coverLetterPrompt + '\n\n' + additionalInformation;
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        body: combinedPrompt
+      })
+
+      if (!response.ok)
+        throw new Error('Failed to generate cover letter')
+
+      const data = await response.json();
+
+      setAiCoverLetter(data);
+    } catch (error) {
+      console.error(error);
+      alert('An error occurred while generating flashcards. Please try again.')
+    }
+  }
+
+  const handleCoverLetterDialogClose = () => {
+    setCoverLetterDialogOpen(false);
+  }
+
+  const handleCoverLetterChange = (event: SelectChangeEvent<number | string>) => {
+    console.log(event.target.value)
+    setSelectedCoverLetterIndex(event.target.value as number)
+  }
+
+  const handleConfirmCoverLetter = () => {
+    if (selectedCoverLetterIndex != undefined && selectedCoverLetterIndex > -1) {
+      setCoverLetterTemplate(coverLetters[selectedCoverLetterIndex].template)
+      handleCoverLetterDialogClose();
+      setChoice(false);
+    }
+      
+  }
+
+  return (
+    <main>
+      <NavBar page="Cover Letter" loading={loading} user={user}/>
+      <div className={styles.coverLetterBody}>
+        <Container sx={{ marginTop: 4, lineHeight: 2 }}>
+          <Box sx={{ mb: 4, whiteSpace: 'pre-line' }}>
+            {aiCoverLetter}
+          </Box>
+        </Container>
+
+        <Container sx={{ position: "relative" }} className={styles.formControl} maxWidth="md">
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <h4>Core Information</h4>
+            </Grid>
+          </Grid>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>  
+              <TextField value={company} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCompany(event.target.value)} fullWidth label="Company" variant="standard"/>
+            </Grid>
+            <Grid item xs={6}>
+              <TextField value={role} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setRole(event.target.value)} fullWidth label="Role" variant="standard"/>
+            </Grid>
+          </Grid>
+
+          {
+            !choice ? 
+          <Grid sx={{ display: 'flex', alignItems: 'center', marginTop: 1 }} container spacing={2}>
+            <Grid sx={{ mt: 2, alignItems: 'center' }} item xs={0.7}>
+              <IconButton onClick={() => setChoice(true)} ><UndoIcon/></IconButton>
+            </Grid> 
+            <Grid item xs={11.3}>
+              <TextField value={coverLetterTemplate} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCoverLetterTemplate(event.target.value)} variant="standard" fullWidth multiline label="Cover Letter Template"/>
+            </Grid> 
+          </Grid> :
+          <Grid sx={{ marginTop: 1 }} container spacing={2}>
+            <Grid item xs={6}>
+              <Button onClick={() => setCoverLetterDialogOpen(true)} fullWidth>Select Cover Letter</Button>
+            </Grid> 
+            <Grid item xs={6}>
+              <Button onClick={() => setChoice(false)} fullWidth>Manually Type One</Button>
+            </Grid>
+          </Grid>
+          }
+
+
+          <Grid sx={{marginTop: 1, marginBottom: -3}} container spacing={2}>
+            <Grid item xs={12}>
+              <h4>Additional Information</h4>
+            </Grid>
+          </Grid>
+
+          {fields.map((field) => (
+           <Grid key={field.id} sx={{marginTop: -1}} container spacing={2}>
+            <Grid item xs={12}>
+             <Box sx={{ display: 'flex', alignItems: 'center' }}>
+               <IconButton sx={{ mt: 1.9, mr: 1 }} onClick={() => handleRemoveField(field.id)} aria-label="close">
+                 <CloseIcon/>
+               </IconButton>
+               <TextField multiline value={field.value} onChange={(event : React.ChangeEvent<HTMLInputElement>) => handleFieldChange(field.id, event)} fullWidth label="Info" variant="standard"/>
+
+             </Box> 
+           </Grid> 
+           </Grid>
+          ))}
+
+
+          <Grid sx={{ marginTop: 1 }} container spacing={2}>
+            <Grid item xs={12}>
+              <Button onClick={handleAddField}>
+                <AddCircleIcon/> <span style={{ marginLeft: 10 }}>New Field</span>
+              </Button>
+            </Grid>
+          </Grid>
+
+          <Box sx={{ position: "absolute", bottom: 10, right: 4 }}>
+            <Button onClick={submitPrompt}>Submit</Button>
+          </Box>
+
+          <Box sx={{ position: "absolute", top: 10, right: 0 }}>
+            <Button onClick={handleClickOpen}>
+              <DownloadIcon/>
+            </Button>
+          </Box>
+          
+        </Container>
+
+        <Dialog onClose={handleDialogClose} open={open}>
+          <DialogTitle>Download Cover Letter</DialogTitle>
+          <DialogContent>
+
+          <TextField value={prescript} onChange={(event) => setPrescript(event.target.value)} fullWidth multiline variant="standard" label="Prescript"/>
+          <TextField value={postscript} onChange={(event) => setPostscript(event.target.value)} fullWidth multiline variant="standard" label="Postscript"/>
+          <FormControl sx={{ mt: 3 }} fullWidth>
+
+            <InputLabel id="filetype-select-label">File Type</InputLabel>
+            <Select
+              variant="standard"
+              labelId="filetype-select-label"
+              id="filetype-select"
+              value={fileType}
+              label="File Type"
+              onChange={handleFileTypeChange}
+              displayEmpty
+            >
+              <MenuItem value="">
+                None
+              </MenuItem>
+              <MenuItem value={'pdf'}>PDF</MenuItem>
+              <MenuItem value={'docx'}>DOCX</MenuItem>
+            </Select>
+          </FormControl>
+            <Button onClick={handleFileGeneration} fullWidth sx={{ mt: 2 }}>Generate</Button>
+          </DialogContent>
+
+        </Dialog>
+
+        <Dialog
+        maxWidth="md"
+        fullWidth
+        onClose={handleCoverLetterDialogClose}
+        open={coverLetterDialogOpen}
+        >
+          <DialogTitle>Select a Cover Letter</DialogTitle>
+          <DialogContent>
+            <FormControl sx={{ mt: 3 }} fullWidth>
+              <InputLabel id="coverletter-select-label">Select a Cover Letter</InputLabel>
+              <Select
+              variant="standard"
+              labelId="coverletter-select-label"
+              id="coverletter-select"
+              value={selectedCoverLetterIndex !== undefined ? selectedCoverLetterIndex : ''}
+              label="Select a Cover Letter"
+              onChange={handleCoverLetterChange}
+              >
+                {
+                  coverLetters.map((coverletter : CoverLetterTemplate, index) => (
+                    <MenuItem value={index} key={index}>{coverletter.name}</MenuItem>
+                  ))
+                }
+              </Select>
+            </FormControl>
+
+            <Box sx={{ mt: 2, whiteSpace: 'pre-line' }}>
+              {
+                selectedCoverLetterIndex !== undefined && selectedCoverLetterIndex > -1 ? coverLetters[selectedCoverLetterIndex].template : "No Cover Letter Selected!"
+              }
+            </Box>
+
+
+          </DialogContent>
+
+          <DialogActions>
+            <Button onClick={handleCoverLetterDialogClose}>Cancel</Button>
+            <Button onClick={handleConfirmCoverLetter}>Confirm</Button>
+          </DialogActions>
+        </Dialog>
+        
+        
+      </div>
+    </main>
+  );
 }

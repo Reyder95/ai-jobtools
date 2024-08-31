@@ -2,3 +2,7 @@
     color: white;
     text-decoration: none;
 }
+
+.appbar {
+    background-color: #2E236C !important;
+}

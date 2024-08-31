@@ -45,7 +45,7 @@ export default function NavBar(props: Props) {
 
     return (
         <Box sx={{ flexGrow: 1}}>
-            <AppBar position="static">
+            <AppBar className={styles.appbar} position="static">
                 <Toolbar>
                     <IconButton
                         size="large"
