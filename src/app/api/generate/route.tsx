@@ -10,6 +10,8 @@ Please do not respond additionally to just filling in these placeholders. Please
 
 For longer placeholder sections, please get a bit creative instead of repeating what was provided.
 
+If warranted, please additionally add in information from the job description that was provided by the user. Do NOT add any adornments on the top of bottom of the cover letter. Just fill in what is necessary
+
 Please do not change anything outside of what is considered a "placeholder".
 `
 
